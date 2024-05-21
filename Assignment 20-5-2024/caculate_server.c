@@ -72,7 +72,7 @@ void *client_proc(void *arg)
         buf[ret] = 0;
         //printf("Received from %d: %s\n", client, buf);
 
-        if (strncmp(buf, "GET / ", 6) == 0)
+        if (strncmp(buf, "GET / ", 6) == 0||strncmp(buf, "POST / "))
         {
             // lấy a b cmd
             char *pos;
