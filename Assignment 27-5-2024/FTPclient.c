@@ -7,7 +7,9 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <errno.h>
-
+#include <dirent.h>
+#include <sys/stat.h>
+#define defaultIP "192.168.0.101"
 int client;
 char buftype;
 unsigned short send_pasv();
@@ -21,17 +23,18 @@ int change_working_dir(char *dirname);
 int make_dir(char *dirname);
 int remove_dir(char *dirname);
 
-int main() 
+int main()
 {
     client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr("10.14.30.214");
+    addr.sin_addr.s_addr = inet_addr(defaultIP);
     addr.sin_port = htons(21);
 
-    int ret = connect(client, (struct sockaddr *) &addr, sizeof(addr));
-    if (ret == -1) {
+    int ret = connect(client, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret == -1)
+    {
         perror("connect() failed");
         return 1;
     }
@@ -40,7 +43,8 @@ int main()
 
     // Nhan xau chao
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -64,7 +68,8 @@ int main()
     send(client, buf, strlen(buf), 0);
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -77,7 +82,8 @@ int main()
     send(client, buf, strlen(buf), 0);
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -86,9 +92,12 @@ int main()
     puts(buf);
 
     // Kiem tra dang nhap thanh cong
-    if (strncmp(buf, "230 ", 4) == 0) {
+    if (strncmp(buf, "230 ", 4) == 0)
+    {
         puts("Dang nhap thanh cong.");
-    } else {
+    }
+    else
+    {
         puts("Dang nhap that bai.");
         close(client);
         return 1;
@@ -98,7 +107,8 @@ int main()
     // Hien thi menu chuc nang
     int command;
     int bt;
-    while(1){
+    while (1)
+    {
         puts("Vui long chon chuc nang");
         puts("1.In noi dung thu muc hien tai");
         puts("2.Doi thu muc hien tai");
@@ -110,83 +120,209 @@ int main()
         puts("8.Xoa file");
         puts("9.Thoat va ngat ket noi");
         printf("Vui long nhap chuc nang: ");
-        scanf("%d",&command);
-        bt=getchar();
-        //scanf("%d",&buftype);
+        scanf("%d", &command);
+        bt = getchar();
+        // scanf("%d",&buftype);
 
-        if(command==9){
+        if (command == 9)
+        {
             break;
         }
+        // xoa file
+        if(command==8){
+            char dirname[256];
+            printf("Nhap ten file muon xoa: ");
+            fgets(dirname,256,stdin);
+            dirname[strlen(dirname)-1]=0;
+            delete_file(dirname);
+        }
+        // doi ten file
+        if (command == 7)
+        {
+            char dirname[254];
+            char dirnamenew[254];
+            printf("Nhap ten file ban muon doi ten: ");
+            fgets(dirname, 254, stdin);
+            printf("Nhap ten moi: ");
+            fgets(dirnamenew, 254, stdin);
+            dirnamenew[strlen(dirnamenew) - 1] = 0;
+            dirname[strlen(dirname) - 1] = 0;
+
+            rename_file(dirname, dirnamenew);
+        }
+        // in noi dung thu muc hien tai
+        if (command == 1)
+        {
+            print_working_dir();
+        }
+        // doi thu muc hien taij
+        if (command == 2)
+        {
+            char dirname[256];
+            printf("Dien ten folder ban muon chuyen den: ");
+            fgets(dirname, 256, stdin);
+            dirname[strlen(dirname) - 1] = 0;
+            change_working_dir(dirname);
+        }
         // download file
-        if(command==5){
+        if (command == 5)
+        {
             printf("Nhap ten file de download: ");
             char filename[256];
             fgets(filename, sizeof(filename), stdin);
             filename[strlen(filename) - 1] = 0;
             download_file(filename);
         }
+        // up load
+        if (command == 6)
+        {
+            // lieu ke ten va dung luong cac file
+            char buf[2048];
+            int pos = 0;
+
+            char path[256];
+            getcwd(path, sizeof(path));
+            strcpy(buf, path);
+            pos += strlen(path) + 1;
+            DIR *d = opendir(path);
+            struct dirent *dir;
+            struct stat st;
+            if (d != NULL)
+                while ((dir = readdir(d)) != NULL)
+                {
+                    if (dir->d_type == DT_REG)
+                    {
+                        stat(dir->d_name, &st);
+                        printf("%s - %ld bytes\n", dir->d_name, st.st_size);
+                        strcpy(buf + pos, dir->d_name);
+                        pos += strlen(dir->d_name) + 1;
+                        memcpy(buf + pos, &st.st_size, sizeof(st.st_size));
+                        pos += sizeof(st.st_size);
+                    }
+                }
+            char dirname[256];
+            printf("Vui long nhap ten file muon upload: ");
+            fgets(dirname, sizeof(dirname), stdin);
+            dirname[strlen(dirname) - 1] = 0;
+            upload_file(dirname);
+        }
         // tao thu muc
-        if(command==3){
+        if (command == 3)
+        {
             char dir[256];
             printf("NHap ten thu muc muon tao: ");
-            fgets(dir,sizeof(dir),stdin);
-            dir[strlen(dir)-1]=0;
+            fgets(dir, sizeof(dir), stdin);
+            dir[strlen(dir) - 1] = 0;
             make_dir(dir);
         }
         // xoa thu muc
-        if(command==4){
+        if (command == 4)
+        {
             char dir[256];
             printf("Nhap thu muc muon xoa: ");
-            fgets(dir,sizeof(dir),stdin);
-            dir[strlen(dir)-1]=0;
+            fgets(dir, sizeof(dir), stdin);
+            dir[strlen(dir) - 1] = 0;
             remove_dir(dir);
         }
     }
     close(client);
-
 }
-int remove_dir(char *dir){
+int print_working_dir()
+{
+    send_list();
+    return 1;
+}
+int change_working_dir(char *dirname)
+{
     char buf[1024];
-    send(client,"cwd FTPtest\r\n",strlen("cwd ftptest\r\n"),0);
-    int ret=recv(client,buf,sizeof(buf),0);
-    buf[ret]=0;
+    sprintf(buf, "cwd %s\r\n", dirname);
+    send(client, buf, strlen(buf), 0);
+    int ret = recv(client, buf, 1024, 0);
+    buf[ret] = 0;
     puts(buf);
-    sprintf(buf,"rmd %s\r\n",dir);
-    send(client,buf,strlen(buf),0);
-    ret=recv(client,buf,sizeof(buf),0);
-    buf[ret]=0;
+    return 1;
+}
+int upload_file(char *dir)
+{
+    unsigned short port = send_pasv(client);
+    printf("Port: %d\n", port);
+
+    // Mo ket noi du lieu
+    int client_data = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    struct sockaddr_in addr_data;
+    addr_data.sin_family = AF_INET;
+    addr_data.sin_addr.s_addr = inet_addr(defaultIP);
+    addr_data.sin_port = htons(port);
+
+    int ret = connect(client_data, (struct sockaddr *)&addr_data, sizeof(addr_data));
+    if (ret == -1)
+    {
+        perror("connect() failed");
+        return 1;
+    }
+    char buf[1024];
+    send(client, "cwd FTPtest\r\n", strlen("swd ftptest\r\n"), 0);
+    ret = recv(client, buf, sizeof(buf), 0);
+    buf[ret] = 0;
+    puts(buf);
+    sprintf(buf, "stor %s\r\n", dir);
+    send(client, buf, strlen(buf), 0);
+    ret = recv(client, buf, sizeof(buf), 0);
+    buf[ret] = 0;
+    puts(buf);
+    printf("Go phim bat ki de tiep tuc : ");
+    buftype = getchar();
+    buftype = getchar();
+    return 1;
+}
+int remove_dir(char *dir)
+{
+    char buf[1024];
+    send(client, "cwd FTPtest\r\n", strlen("cwd ftptest\r\n"), 0);
+    int ret = recv(client, buf, sizeof(buf), 0);
+    buf[ret] = 0;
+    puts(buf);
+    sprintf(buf, "rmd %s\r\n", dir);
+    send(client, buf, strlen(buf), 0);
+    ret = recv(client, buf, sizeof(buf), 0);
+    buf[ret] = 0;
     puts(buf);
     printf("Go phim bat ki de tiep tuc: ");
-    buftype=getchar();
-    buftype=getchar();
+    buftype = getchar();
+    buftype = getchar();
 }
-int make_dir(char *dirname){
+int make_dir(char *dirname)
+{
     char buf[1024];
-    send(client,"CWD FTPtest\r\n",strlen("cwd FTPtest\r\n"),0);
-    int ret=recv(client,buf,sizeof(buf),0);
-    buf[ret]=0;
+    send(client, "CWD FTPtest\r\n", strlen("cwd FTPtest\r\n"), 0);
+    int ret = recv(client, buf, sizeof(buf), 0);
+    buf[ret] = 0;
     puts(buf);
-    sprintf(buf,"MKD %s\r\n",dirname);
+    sprintf(buf, "MKD %s\r\n", dirname);
     puts(buf);
-    send(client,buf,strlen(buf),0);
-    ret=recv(client,buf,sizeof(buf),0);
-    if(ret<=0){
+    send(client, buf, strlen(buf), 0);
+    ret = recv(client, buf, sizeof(buf), 0);
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
-    buf[ret]=0;
+    buf[ret] = 0;
     puts(buf);
     printf("Go phim bat ki de tiep tuc: ");
-    scanf("%c",&buftype);
-    scanf("%c",&buftype);
+    scanf("%c", &buftype);
+    scanf("%c", &buftype);
 }
-unsigned short send_pasv(int client) {
+unsigned short send_pasv(int client)
+{
     char buf[2048];
 
     send(client, "PASV\r\n", 6, 0);
 
     int ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -205,21 +341,23 @@ unsigned short send_pasv(int client) {
     return p1 * 256 + p2;
 }
 
-int send_list() {
+int send_list()
+{
     // Gui lenh PASV
     unsigned short port = send_pasv(client);
     printf("Port: %d\n", port);
 
-    // Mo ket noi du lieu 
+    // Mo ket noi du lieu
     int client_data = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     struct sockaddr_in addr_data;
     addr_data.sin_family = AF_INET;
-    addr_data.sin_addr.s_addr = inet_addr("10.14.30.214");
+    addr_data.sin_addr.s_addr = inet_addr(defaultIP);
     addr_data.sin_port = htons(port);
 
-    int ret = connect(client_data, (struct sockaddr *) &addr_data, sizeof(addr_data));
-    if (ret == -1) {
+    int ret = connect(client_data, (struct sockaddr *)&addr_data, sizeof(addr_data));
+    if (ret == -1)
+    {
         perror("connect() failed");
         return 1;
     }
@@ -230,7 +368,8 @@ int send_list() {
     char buf[2048];
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -240,9 +379,11 @@ int send_list() {
 
     // Nhan du lieu tren kenh du lieu
     // In ra man hinh
-    while (1) {
+    while (1)
+    {
         ret = recv(client_data, buf, sizeof(buf) - 1, 0);
-        if (ret <= 0) {
+        if (ret <= 0)
+        {
             close(client_data);
             break;
         }
@@ -254,7 +395,8 @@ int send_list() {
     printf("\n");
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -263,20 +405,22 @@ int send_list() {
     puts(buf);
 }
 
-int download_file(char *remote_file) {
+int download_file(char *remote_file)
+{
     unsigned short port = send_pasv(client);
     printf("Port: %d\n", port);
 
-    // Mo ket noi du lieu 
+    // Mo ket noi du lieu
     int client_data = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     struct sockaddr_in addr_data;
     addr_data.sin_family = AF_INET;
-    addr_data.sin_addr.s_addr = inet_addr("10.14.30.214");
+    addr_data.sin_addr.s_addr = inet_addr(defaultIP);
     addr_data.sin_port = htons(port);
 
-    int ret = connect(client_data, (struct sockaddr *) &addr_data, sizeof(addr_data));
-    if (ret == -1) {
+    int ret = connect(client_data, (struct sockaddr *)&addr_data, sizeof(addr_data));
+    if (ret == -1)
+    {
         perror("connect() failed");
         return 1;
     }
@@ -288,7 +432,8 @@ int download_file(char *remote_file) {
     send(client, buf, strlen(buf), 0);
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
@@ -298,7 +443,8 @@ int download_file(char *remote_file) {
 
     // Nhan noi dung file
     FILE *f = fopen(remote_file, "wb");
-    while (1) {
+    while (1)
+    {
         ret = recv(client_data, buf, sizeof(buf), 0);
         if (ret <= 0)
             break;
@@ -308,11 +454,45 @@ int download_file(char *remote_file) {
     fclose(f);
 
     ret = recv(client, buf, sizeof(buf), 0);
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         close(client);
         return 1;
     }
 
     buf[ret] = 0;
     puts(buf);
+}
+int rename_file(char *dirname, char *dirnamenew)
+{
+    char buf[1024];
+    sprintf(buf, "rnfr %s\r\n", dirname);
+    send(client, buf, strlen(buf), 0);
+    int ret = recv(client, buf, 1024, 0);
+    if (ret <= 0)
+    {
+        close(client);
+        return 0;
+    }
+    buf[ret] = 0;
+    puts(buf);
+    sprintf(buf, "rnto %s\r\n", dirnamenew);
+    send(client, buf, strlen(buf), 0);
+    ret = recv(client, buf, 1024, 0);
+    buf[ret] = 0;
+    puts(buf);
+    return 1;
+}
+int delete_file(char *dirname){
+    char buf[1024];
+    sprintf(buf,"dele %s\r\n",dirname);
+    send(client,buf,strlen(buf),0);
+    int ret=recv(client,buf,1024,0);
+    if(ret<=0){
+        close(client);
+        return 0;
+    }
+    buf[ret]=0;
+    puts(buf);
+    return 1;
 }
