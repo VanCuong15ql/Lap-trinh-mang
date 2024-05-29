@@ -126,6 +126,7 @@ int main()
 
         if (command == 9)
         {
+            puts("Cam on ban da su dung dich vu, bye bye");
             break;
         }
         // xoa file
@@ -442,7 +443,7 @@ int download_file(char *remote_file)
     puts(buf);
 
     // Nhan noi dung file
-    FILE *f = fopen(remote_file, "wb");
+    FILE *f = fopen(remote_file, "w");
     while (1)
     {
         ret = recv(client_data, buf, sizeof(buf), 0);
