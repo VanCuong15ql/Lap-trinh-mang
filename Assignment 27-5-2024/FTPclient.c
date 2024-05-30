@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#define defaultIP "192.168.0.101"
+#define defaultIP "192.168.89.103"
 int client;
 char buftype;
 unsigned short send_pasv();
@@ -269,6 +269,18 @@ int upload_file(char *dir)
     puts(buf);
     sprintf(buf, "stor %s\r\n", dir);
     send(client, buf, strlen(buf), 0);
+    // mo file dirname, doc va gui du lieu
+    FILE *f=fopen(dir,"rb");
+    fseek(f,0,SEEK_SET);
+    while(1){
+        int ret=fread(buf,1,1024,f);
+        if(ret<=0){
+            break;
+        }
+        send(client_data,buf,strlen(buf),0);
+    }
+    fclose(f);
+    
     ret = recv(client, buf, sizeof(buf), 0);
     buf[ret] = 0;
     puts(buf);
